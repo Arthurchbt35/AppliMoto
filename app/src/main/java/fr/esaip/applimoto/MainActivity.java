@@ -1,4 +1,4 @@
-package fr.esaip.applimoto;;
+package fr.esaip.applimoto;
 
 import android.content.Intent;
 import android.os.Bundle;
