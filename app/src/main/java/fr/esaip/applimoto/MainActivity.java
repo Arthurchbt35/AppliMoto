@@ -22,6 +22,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void clicCompare(View v) {
-        startActivity(new Intent(this, CompareActivity.class));
+        startActivity(new Intent(this, Compare.class));
     }
 }
