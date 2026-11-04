@@ -9,9 +9,25 @@ Pour récupérer les informations de la saison 2026, nous utilisons une API (une
 *Notre petite astuce :* Comme les API gratuites bloquent parfois quand on fait trop de demandes d'un coup, nous avons aussi créé notre propre fichier de secours (un fichier JSON hébergé sur GitHub). Ça fonctionne exactement comme l'API et ça nous garantit que l'application marchera parfaitement le jour de la présentation !
 
 ## Comment est fait le calendrier ?
-Le calendrier est une liste dynamique. Quand l'application s'ouvre, elle va lire les données de l'API et crée automatiquement une liste déroulante avec toutes les courses de l'année.
+Le calendrier est une liste dynamique. Quand l'application s'ouvre, elle va lire les données de l'API **API-Sports (API-MotoGP via RapidAPI)** et crée automatiquement une liste déroulante avec toutes les courses de l'année.
 C'est un affichage intelligent : si on clique sur une course qui n'a pas encore eu lieu, l'application montre seulement le tracé du circuit. Mais si on clique sur une course qui est déjà terminée, elle affiche le circuit, les résultats complets et la différence entre la position de départ (qualifications) et la position à l'arrivée.
 
 ## Les graphiques d'évolution (Jetpack Compose)
 Pour que l'application soit plus visuelle, nous avons ajouté un graphique qui montre l'évolution des points des meilleurs pilotes du championnat course après course.
 Pour dessiner ce graphique, **nous utilisons la fonction Jetpack Compose**. C'est la nouvelle méthode d'Android pour créer des écrans. C'est beaucoup plus simple et moderne pour construire de jolies courbes de points que les vieilles méthodes habituelles !
+
+## Système d'authentification (FireBase)
+Chaque utilisateur doit se créer un compte avec son adresse e-mail ainsi qu'un mot de passe lors du premier lancement de l'application.
+Il devra ensuite se reconnecter à chaque nouveau lancement de l'application.
+
+## Liste et description des fichiers du Projet
+
+**activity_main.xml** Page d'Accueil, contient un compte à rebours visuel, les favoris de l'utilisateurs et des boutons de navigation.
+
+**activity_calendar.xml** Calendrier avec les courses et leurs infos.
+
+**activity_race_detail.xml** Fiche de course avec le tracé et les résultats.
+
+**activity_standings.xml** Classements des Pilotes et des Constructeurs.
+
+**activity_compare.xml** Face-à-Face visuel entre 2 pilotes que l'utilisateur sélectionne lui même.
