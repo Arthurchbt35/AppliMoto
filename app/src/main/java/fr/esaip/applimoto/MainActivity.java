@@ -14,11 +14,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void clicCalendar(View v) {
-        startActivity(new Intent(this, CalendarActivity.class));
+        startActivity(new Intent(this, Calendar.class));
     }
 
     public void clicStandings(View v) {
-        startActivity(new Intent(this, StandingsActivity.class));
+        startActivity(new Intent(this, Standing.class));
     }
 
     public void clicCompare(View v) {
