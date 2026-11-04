@@ -30,7 +30,6 @@ public class Auth extends AppCompatActivity {
             return insets;
         });
 
-        // Initialisation de Firebase Auth
         mAuth = FirebaseAuth.getInstance();
 
         login = findViewById(R.id.login);
@@ -50,7 +49,6 @@ public class Auth extends AppCompatActivity {
             return;
         }
 
-        // Connexion avec Firebase Auth
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
@@ -59,7 +57,6 @@ public class Auth extends AppCompatActivity {
                         startActivity(intention);
                         finish();
                     } else {
-                        // Création automatique si le compte n'existe pas (pratique pour tester)
                         mAuth.createUserWithEmailAndPassword(email, password)
                                 .addOnCompleteListener(createTask -> {
                                     if (createTask.isSuccessful()) {
