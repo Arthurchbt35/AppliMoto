@@ -1,35 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.motogp2026">
-
+    package="fr.esaip.applimoto">
     <application
         android:allowBackup="true"
         android:label="MotoGP 2026"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".Auth"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".CalendarActivity" />
-        <activity android:name=".RaceDetailActivity" />
-        <activity android:name=".StandingsActivity" />
-        <activity android:name=".CompareActivity" />
         <activity
-            android:name=".activity_race_detail"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".RaceDetail"
+            android:name=".MainActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".Calendar"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".RaceDetail"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
@@ -38,10 +33,6 @@
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".Compare"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".Auth"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
     </application>
