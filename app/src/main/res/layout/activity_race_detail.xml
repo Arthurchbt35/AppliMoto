@@ -14,9 +14,44 @@
         android:layout_marginBottom="20dp" />
 
     <TextView
+        android:id="@+id/tv_race_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Tracé et résultats (si terminé)..."
+        android:text="Chargement..."
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/black"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/tv_race_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Date"
+        android:textSize="16sp"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/tv_race_country"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Pays : Chargement..."
+        android:textSize="16sp"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/tv_race_track"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tracé : Chargement..."
+        android:textSize="16sp"
+        android:layout_marginBottom="20dp" />
+
+    <TextView
+        android:id="@+id/tv_race_results"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Résultats : En attente des données"
         android:textSize="16sp"
         android:layout_marginBottom="30dp" />
 
