@@ -10,7 +10,6 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.StringRequest;
@@ -55,7 +54,6 @@ public class Calendar extends AppCompatActivity {
                 },
                 error -> Toast.makeText(this, "Erreur réseau", Toast.LENGTH_SHORT).show());
 
-        stringRequest.setRetryPolicy(new DefaultRetryPolicy(10000, 0, 1f));
         queue.add(stringRequest);
     }
 
@@ -68,9 +66,8 @@ public class Calendar extends AppCompatActivity {
             try {
                 JSONObject event = allEventsArray.getJSONObject(i);
                 String name = event.optString("sponsored_name", event.optString("name", ""));
-                boolean isTest = event.optBoolean("test", false);
 
-                if (isTest || !name.toUpperCase().contains("GRAND PRIX")) {
+                if (event.optBoolean("test", false) || !name.toUpperCase().contains("GRAND PRIX")) {
                     continue;
                 }
 
@@ -84,54 +81,24 @@ public class Calendar extends AppCompatActivity {
                 JSONObject circuitObj = event.optJSONObject("circuit");
                 String circuitName = (circuitObj != null) ? circuitObj.optString("name", "Circuit MotoGP") : "Circuit MotoGP";
 
-                String countryIso = extractCountryIso(event, circuitObj);
-                String flag = getFlagEmoji(countryIso);
-                String countryName = getCountryNameFr(countryIso, event);
+                JSONObject countryObj = event.optJSONObject("country");
+                String countryIso = (countryObj != null) ? countryObj.optString("iso", "") : event.optString("country", "");
+                if (countryIso.length() != 2 && circuitObj != null) {
+                    countryIso = circuitObj.optString("country", "");
+                }
 
-                String statusText = isFinished ? "TERMINÉ" : "À VENIR";
-                String eventId = event.optString("id", "");
+                String flag = getFlagEmoji(countryIso);
+                String countryName = (countryIso.length() == 2) ? new Locale("", countryIso).getDisplayCountry(Locale.FRENCH) : "";
 
                 String locationLine = countryName.isEmpty() ? circuitName : circuitName + " (" + countryName + ")";
                 String buttonLabel = "GP #" + gpNumber + " - " + flag + " " + name + "\n"
-                        + "📍 " + locationLine + "\n"
-                        + "📅 Du " + dateStart + " au " + dateEnd + "  [" + statusText + "]";
+                        + "Localisation : " + locationLine;
 
-                addRaceButton(buttonLabel, eventId, flag + " " + name, locationLine, dateStart + " au " + dateEnd, isFinished);
+                addRaceButton(buttonLabel, event.optString("id", ""), flag + " " + name, locationLine, dateStart + " au " + dateEnd, isFinished);
                 gpNumber++;
 
             } catch (Exception ignored) {}
         }
-    }
-
-    private String extractCountryIso(JSONObject event, JSONObject circuitObj) {
-        Object countryField = event.opt("country");
-        if (countryField instanceof String) {
-            return (String) countryField;
-        } else if (countryField instanceof JSONObject) {
-            JSONObject cObj = (JSONObject) countryField;
-            String iso = cObj.optString("iso", cObj.optString("code", ""));
-            if (!iso.isEmpty()) return iso;
-        }
-        if (circuitObj != null) {
-            String cIso = circuitObj.optString("country", circuitObj.optString("iso_code", ""));
-            if (cIso.length() == 2) return cIso;
-        }
-        return "";
-    }
-
-    private String getCountryNameFr(String isoCode, JSONObject event) {
-        if (isoCode != null && isoCode.length() == 2) {
-            Locale loc = new Locale("", isoCode.toUpperCase());
-            String display = loc.getDisplayCountry(Locale.FRENCH);
-            if (!display.isEmpty() && !display.equalsIgnoreCase(isoCode)) {
-                return display;
-            }
-        }
-        JSONObject cObj = event.optJSONObject("country");
-        if (cObj != null) {
-            return cObj.optString("name", "");
-        }
-        return "";
     }
 
     private void addRaceButton(String label, String eventId, String title, String circuit, String dates, boolean isFinished) {
