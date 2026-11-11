@@ -71,6 +71,9 @@ public class RaceDetail extends AppCompatActivity {
                 response -> {
                     try {
                         String utf8Response = new String(response.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+
+                        // Si l'API renvoie un objet contenant un tableau "sessions" et non un tableau direct,
+                        // le parse JSON va planter. On a ajouté un message pour capter ça.
                         JSONArray sessions = new JSONArray(utf8Response.trim());
 
                         if (sessions.length() > 0) {
@@ -81,15 +84,32 @@ public class RaceDetail extends AppCompatActivity {
                                 sb.append("• ").append(sessionName).append("\n");
                             }
                             tvRaceResults.setText(sb.toString());
+                        } else {
+                            tvRaceResults.setText("🏁 Statut : Grand Prix terminé\n(Aucune session trouvée dans les données)");
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        // Captera l'erreur si le JSON ne commence pas par '[' mais par '{'
+                        tvRaceResults.setText("🏁 Erreur de formatage des données JSON :\n" + e.getMessage());
+                        e.printStackTrace();
+                    }
                 },
-                error -> tvRaceResults.setText("🏁 Statut : Grand Prix terminé (Détails réseau indisponibles)")) {
+                error -> {
+                    // On extrait le vrai code d'erreur HTTP renvoyé par le serveur
+                    int statusCode = -1;
+                    if (error.networkResponse != null) {
+                        statusCode = error.networkResponse.statusCode;
+                    }
+                    tvRaceResults.setText("🏁 Statut : Grand Prix terminé\n❌ Échec de l'API : Code HTTP " + statusCode);
+                }) {
 
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
                 headers.put("Accept", "application/json");
+                // Ajout des headers pour simuler un navigateur Chrome sur Windows
+                headers.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                headers.put("Origin", "https://www.motogp.com");
+                headers.put("Referer", "https://www.motogp.com/");
                 return headers;
             }
         };
@@ -97,7 +117,6 @@ public class RaceDetail extends AppCompatActivity {
         stringRequest.setRetryPolicy(new DefaultRetryPolicy(10000, 0, 1f));
         queue.add(stringRequest);
     }
-
     public void clicBack(View v) {
         finish();
     }
