@@ -62,32 +62,99 @@ public class RaceDetail extends AppCompatActivity {
         }
     }
 
-    private void fetchSessionsResults(String eventId) {
-        // NOUVELLE URL CORRECTE :
-        // On cible l'endpoint des résultats, on passe l'ID de l'événement ET l'ID officiel de la catégorie MotoGP
-        String categoryMotoGP = "e8c110ad-64aa-4e8e-8a86-f2f152f6a942";
-        String url = "https://api.motogp.pulselive.com/motogp/v1/results/sessions?eventUuid=" + eventId + "&categoryUuid=" + categoryMotoGP;
-
+    private void fetchSessionsResults(String broadcastEventId) {
         RequestQueue queue = Volley.newRequestQueue(this);
 
-        StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
-                response -> {
-                    try {
-                        String utf8Response = new String(response.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+        // ÉTAPE 1 : Récupérer l'ID de la saison 2026 dans l'API des résultats
+        String urlSeasons = "https://api.motogp.pulselive.com/motogp/v1/results/seasons";
 
-                        // L'API renvoie directement un tableau [...]
+        StringRequest requestSeasons = new StringRequest(Request.Method.GET, urlSeasons,
+                responseSeasons -> {
+                    try {
+                        JSONArray seasons = new JSONArray(responseSeasons.trim());
+                        String seasonUuid = "";
+                        for (int i = 0; i < seasons.length(); i++) {
+                            JSONObject s = seasons.getJSONObject(i);
+                            if (s.optInt("year") == 2026) { // On cherche l'année en cours
+                                seasonUuid = s.optString("id");
+                                break;
+                            }
+                        }
+
+                        if (!seasonUuid.isEmpty()) {
+                            fetchResultsEventId(queue, seasonUuid, broadcastEventId);
+                        } else {
+                            tvRaceResults.setText("🏁 Statut : Grand Prix terminé\n❌ Saison 2026 introuvable");
+                        }
+                    } catch (Exception e) {
+                        tvRaceResults.setText("🏁 Erreur JSON (Saisons) : " + e.getMessage());
+                    }
+                },
+                error -> tvRaceResults.setText("🏁 Échec API (Saisons) : Code HTTP " + (error.networkResponse != null ? error.networkResponse.statusCode : "Inconnu"))) {
+            @Override
+            public Map<String, String> getHeaders() { return getApiHeaders(); }
+        };
+
+        // Configuration du Timeout pour Volley
+        requestSeasons.setRetryPolicy(new DefaultRetryPolicy(10000, 0, 1f));
+        queue.add(requestSeasons);
+    }
+
+    private void fetchResultsEventId(RequestQueue queue, String seasonUuid, String broadcastEventId) {
+        // ÉTAPE 2 : Trouver le bon UUID d'événement pour la Results API
+        String urlEvents = "https://api.motogp.pulselive.com/motogp/v1/results/events?seasonUuid=" + seasonUuid;
+
+        StringRequest requestEvents = new StringRequest(Request.Method.GET, urlEvents,
+                responseEvents -> {
+                    try {
+                        JSONArray events = new JSONArray(new String(responseEvents.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8).trim());
+                        String resultsEventUuid = "";
+
+                        for (int i = 0; i < events.length(); i++) {
+                            JSONObject ev = events.getJSONObject(i);
+                            // toad_api_uuid est la clé qui lie la Results API à la Broadcast API du calendrier
+                            if (broadcastEventId.equals(ev.optString("toad_api_uuid"))) {
+                                resultsEventUuid = ev.optString("id");
+                                break;
+                            }
+                        }
+
+                        if (!resultsEventUuid.isEmpty()) {
+                            fetchFinalSessions(queue, resultsEventUuid);
+                        } else {
+                            tvRaceResults.setText("🏁 Statut : Grand Prix terminé\n❌ Correspondance d'événement introuvable (404 évité)");
+                        }
+                    } catch (Exception e) {
+                        tvRaceResults.setText("🏁 Erreur JSON (Events) : " + e.getMessage());
+                    }
+                },
+                error -> tvRaceResults.setText("🏁 Échec API (Events) : Code HTTP " + (error.networkResponse != null ? error.networkResponse.statusCode : "Inconnu"))) {
+            @Override
+            public Map<String, String> getHeaders() { return getApiHeaders(); }
+        };
+
+        requestEvents.setRetryPolicy(new DefaultRetryPolicy(10000, 0, 1f));
+        queue.add(requestEvents);
+    }
+
+    private void fetchFinalSessions(RequestQueue queue, String resultsEventUuid) {
+        // ÉTAPE 3 : Appel final des sessions avec le UUID corrigé et la catégorie MotoGP
+        String categoryMotoGP = "e8c110ad-64aa-4e8e-8a86-f2f152f6a942";
+        String urlSessions = "https://api.motogp.pulselive.com/motogp/v1/results/sessions?eventUuid=" + resultsEventUuid + "&categoryUuid=" + categoryMotoGP;
+
+        StringRequest requestSessions = new StringRequest(Request.Method.GET, urlSessions,
+                responseSessions -> {
+                    try {
+                        String utf8Response = new String(responseSessions.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
                         JSONArray sessions = new JSONArray(utf8Response.trim());
 
                         if (sessions.length() > 0) {
                             StringBuilder sb = new StringBuilder("🏁 Programme MotoGP :\n\n");
-
                             for (int i = 0; i < sessions.length(); i++) {
                                 JSONObject session = sessions.getJSONObject(i);
-
-                                // L'API utilise la clé "type" (ex: "RAC", "Q2")
                                 String type = session.optString("type", "Session");
 
-                                // Traduction des codes de l'API pour un meilleur affichage
+                                // Remplacement des acronymes par le nom complet en français
                                 switch (type) {
                                     case "RAC": type = "Course Principale"; break;
                                     case "SPR": type = "Course Sprint"; break;
@@ -99,7 +166,6 @@ public class RaceDetail extends AppCompatActivity {
                                     case "WUP": type = "Warm Up"; break;
                                     case "P":   type = "Essais"; break;
                                 }
-
                                 sb.append("• ").append(type).append("\n");
                             }
                             tvRaceResults.setText(sb.toString());
@@ -107,28 +173,26 @@ public class RaceDetail extends AppCompatActivity {
                             tvRaceResults.setText("🏁 Statut : Grand Prix terminé\n(Aucune session MotoGP trouvée)");
                         }
                     } catch (Exception e) {
-                        tvRaceResults.setText("🏁 Erreur de formatage JSON :\n" + e.getMessage());
+                        tvRaceResults.setText("🏁 Erreur JSON (Sessions) : " + e.getMessage());
                     }
                 },
-                error -> {
-                    int statusCode = (error.networkResponse != null) ? error.networkResponse.statusCode : -1;
-                    tvRaceResults.setText("🏁 Statut : Grand Prix terminé\n❌ Échec de l'API : Code HTTP " + statusCode);
-                }) {
-
+                error -> tvRaceResults.setText("🏁 Échec API (Sessions) : Code HTTP " + (error.networkResponse != null ? error.networkResponse.statusCode : "Inconnu"))) {
             @Override
-            public Map<String, String> getHeaders() {
-                Map<String, String> headers = new HashMap<>();
-                headers.put("Accept", "application/json");
-                // On garde les en-têtes qui simulent un navigateur web au cas où
-                headers.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-                headers.put("Origin", "https://www.motogp.com");
-                headers.put("Referer", "https://www.motogp.com/");
-                return headers;
-            }
+            public Map<String, String> getHeaders() { return getApiHeaders(); }
         };
 
-        stringRequest.setRetryPolicy(new DefaultRetryPolicy(10000, 0, 1f));
-        queue.add(stringRequest);
+        requestSessions.setRetryPolicy(new DefaultRetryPolicy(10000, 0, 1f));
+        queue.add(requestSessions);
+    }
+
+    // Factorisation des headers pour éviter la répétition dans les 3 méthodes
+    private Map<String, String> getApiHeaders() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Accept", "application/json");
+        headers.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        headers.put("Origin", "https://www.motogp.com");
+        headers.put("Referer", "https://www.motogp.com/");
+        return headers;
     }
     public void clicBack(View v) {
         finish();
