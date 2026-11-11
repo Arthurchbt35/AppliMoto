@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -17,110 +16,76 @@ import com.android.volley.toolbox.Volley;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 public class RaceDetail extends AppCompatActivity {
 
-    private TextView tvRaceName, tvRaceDate, tvRaceCountry, tvRaceTrack, tvRaceResults;
-    private String passedDate = "";
+    private TextView tvRaceTitle;
+    private TextView tvCircuitName;
+    private TextView tvRaceDates;
+    private TextView tvRaceResults;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_race_detail);
 
-        // Initialisation des vues
-        tvRaceName = findViewById(R.id.tv_race_name);
-        tvRaceDate = findViewById(R.id.tv_race_date);
-        tvRaceCountry = findViewById(R.id.tv_race_country);
-        tvRaceTrack = findViewById(R.id.tv_race_track);
+        tvRaceTitle = findViewById(R.id.tv_race_title);
+        tvCircuitName = findViewById(R.id.tv_circuit_name);
+        tvRaceDates = findViewById(R.id.tv_race_dates);
         tvRaceResults = findViewById(R.id.tv_race_results);
 
-        // Récupération des données depuis Calendar
         Intent intent = getIntent();
-        if (intent != null && intent.hasExtra("RACE_NAME")) {
-            String passedData = intent.getStringExtra("RACE_NAME");
+        if (intent != null) {
+            // Récupération des clés transmises par Calendar.java
+            String title = intent.getStringExtra("RACE_TITLE");
+            String circuit = intent.getStringExtra("CIRCUIT_NAME");
+            String dates = intent.getStringExtra("RACE_DATES");
+            String eventId = intent.getStringExtra("EVENT_ID");
+            boolean isFinished = intent.getBooleanExtra("IS_FINISHED", false);
 
-            if (passedData != null) {
-                String[] parts = passedData.split("\n");
+            // Mise à jour de l'affichage avec les infos du GP sélectionné
+            if (title != null) tvRaceTitle.setText(title);
+            if (circuit != null) tvCircuitName.setText("📍 " + circuit);
+            if (dates != null) tvRaceDates.setText("📅 " + dates);
 
-                if (parts.length > 0) {
-                    tvRaceName.setText(parts[0]);
+            if (isFinished) {
+                tvRaceResults.setText("🏁 Statut : Grand Prix terminé");
+                if (eventId != null && !eventId.isEmpty()) {
+                    fetchSessionsResults(eventId);
                 }
-                if (parts.length > 1) {
-                    passedDate = parts[1];
-                    tvRaceDate.setText("Date : " + passedDate);
-                }
-
-                // Appel API pour récupérer les détails manquants
-                fetchRaceDetails(parts[0]);
+            } else {
+                tvRaceResults.setText("⏳ Statut : Week-end à venir");
             }
         }
     }
 
-    private void fetchRaceDetails(String raceNameTarget) {
-        // On récupère tout le calendrier 2026 pour filtrer l'événement cible
-        String url = "https://api.motogp.pulselive.com/motogp/v1/events?seasonYear=2026";
+    private void fetchSessionsResults(String eventId) {
+        // Interrogation de l'API avec l'ID de l'événement choisi
+        String url = "https://api.motogp.pulselive.com/motogp/v1/events/" + eventId + "/sessions";
         RequestQueue queue = Volley.newRequestQueue(this);
 
         StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
                 response -> {
                     try {
-                        JSONArray array = new JSONArray(response.trim());
-                        boolean eventFound = false;
+                        String utf8Response = new String(response.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+                        JSONArray sessions = new JSONArray(utf8Response.trim());
 
-                        for (int i = 0; i < array.length(); i++) {
-                            JSONObject event = array.getJSONObject(i);
-                            String apiName = event.optString("sponsored_name", event.optString("name", ""));
-
-                            // On compare le nom reçu de l'Intent avec celui de l'API
-                            if (apiName.equals(raceNameTarget)) {
-                                eventFound = true;
-
-                                // Extraction du pays et du circuit
-                                String track = "Non disponible";
-                                String country = "Non disponible";
-
-                                JSONObject circuit = event.optJSONObject("circuit");
-                                if (circuit != null) {
-                                    track = circuit.optString("name", track);
-                                    JSONObject place = circuit.optJSONObject("place");
-                                    if (place != null) {
-                                        JSONObject countryObj = place.optJSONObject("country");
-                                        if (countryObj != null) {
-                                            country = countryObj.optString("name", country);
-                                        }
-                                    }
-                                }
-
-                                // Mise à jour de l'UI
-                                tvRaceCountry.setText("Pays : " + country);
-                                tvRaceTrack.setText("Circuit : " + track);
-
-                                // Logique pour les résultats (passé ou futur)
-                                checkResultsAvailability();
-                                break; // On a trouvé la course, on arrête la boucle
+                        if (sessions.length() > 0) {
+                            StringBuilder sb = new StringBuilder("🏁 Sessions du week-end :\n\n");
+                            for (int i = 0; i < sessions.length(); i++) {
+                                JSONObject session = sessions.getJSONObject(i);
+                                String sessionName = session.optString("name", "Session " + (i + 1));
+                                sb.append("• ").append(sessionName).append("\n");
                             }
+                            tvRaceResults.setText(sb.toString());
                         }
-
-                        if (!eventFound) {
-                            tvRaceCountry.setText("Pays : Introuvable");
-                            tvRaceTrack.setText("Circuit : Introuvable");
-                        }
-
-                    } catch (Exception e) {
-                        Toast.makeText(this, "Erreur de lecture des détails", Toast.LENGTH_SHORT).show();
-                    }
+                    } catch (Exception ignored) {}
                 },
-                error -> {
-                    Toast.makeText(this, "Erreur réseau lors de la récupération des détails", Toast.LENGTH_SHORT).show();
-                    tvRaceCountry.setText("Pays : Erreur réseau");
-                    tvRaceTrack.setText("Circuit : Erreur réseau");
-                }) {
+                error -> tvRaceResults.setText("🏁 Statut : Grand Prix terminé (Détails réseau indisponibles)")) {
+
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
@@ -129,27 +94,8 @@ public class RaceDetail extends AppCompatActivity {
             }
         };
 
-        stringRequest.setRetryPolicy(new DefaultRetryPolicy(10000, 0, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        stringRequest.setRetryPolicy(new DefaultRetryPolicy(10000, 0, 1f));
         queue.add(stringRequest);
-    }
-
-    private void checkResultsAvailability() {
-        if (!passedDate.isEmpty()) {
-            try {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                Date raceDate = sdf.parse(passedDate);
-                Date today = new Date();
-
-                if (raceDate != null && raceDate.before(today)) {
-                    tvRaceResults.setText("Résultats : Disponibles (Génération du classement...)");
-                    // Tu pourras ajouter ici la logique ou la vue Jetpack Compose pour les résultats
-                } else {
-                    tvRaceResults.setText("Résultats : Course à venir");
-                }
-            } catch (Exception e) {
-                tvRaceResults.setText("Résultats : Statut inconnu");
-            }
-        }
     }
 
     public void clicBack(View v) {
