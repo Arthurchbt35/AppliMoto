@@ -51,15 +51,15 @@ public class RaceDetail extends AppCompatActivity {
 
             if (title != null) tvRaceTitle.setText(title);
             if (circuit != null) tvCircuitName.setText(circuit);
-            if (dates != null) tvRaceDates.setText("📅 " + dates);
+            if (dates != null) tvRaceDates.setText(dates);
 
             if (isFinished) {
-                tvStatus.setText("🏁 Grand Prix terminé");
+                tvStatus.setText("Grand Prix terminé");
                 if (eventId != null && !eventId.isEmpty()) {
                     fetchSessionsResults(eventId);
                 }
             } else {
-                tvStatus.setText("⏳ Week-end à venir");
+                tvStatus.setText("Week-end à venir");
             }
         }
     }
@@ -185,20 +185,29 @@ public class RaceDetail extends AppCompatActivity {
     private void fetchSessionClassification(String sessionUuid, String sessionName) {
         tvSessionDetails.setText("Chargement du classement pour " + sessionName + "...");
 
-        String url = "https://api.motogp.pulselive.com/motogp/v1/results/classifications?sessionUuid=" + sessionUuid;
+        // CORRECTION ICI : "classification" au singulier (sans le 's' final)
+        String url = "https://api.motogp.pulselive.com/motogp/v1/results/classification?sessionUuid=" + sessionUuid;
+
         RequestQueue queue = Volley.newRequestQueue(this);
 
         StringRequest request = new StringRequest(Request.Method.GET, url,
                 response -> {
                     try {
                         String utf8Response = new String(response.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
-                        // Parfois l'API encapsule le tableau dans un objet "classification"
+
+                        // L'API peut encapsuler le tableau dans un objet ou le donner directement
                         JSONArray classificationArray;
                         if (utf8Response.trim().startsWith("{")) {
                             JSONObject obj = new JSONObject(utf8Response);
                             classificationArray = obj.getJSONArray("classification");
                         } else {
                             classificationArray = new JSONArray(utf8Response.trim());
+                        }
+
+                        // Vérification si la session est encore vide (ex: Course non démarrée mais créée)
+                        if (classificationArray.length() == 0) {
+                            tvSessionDetails.setText("Aucun classement disponible pour " + sessionName + " (Session en attente).");
+                            return;
                         }
 
                         StringBuilder sb = new StringBuilder("🏆 Classement - " + sessionName + "\n\n");
@@ -210,29 +219,39 @@ public class RaceDetail extends AppCompatActivity {
                             JSONObject rider = item.optJSONObject("rider");
                             String riderName = (rider != null) ? rider.optString("full_name", "Pilote inconnu") : "Pilote";
 
-                            // Certains items ont un temps total, d'autres un "gap" (écart avec le premier)
+                            // On cherche le temps, s'il est vide on prend l'écart (gap)
                             String timeString = item.optString("time", "");
-                            if (timeString.isEmpty()) timeString = item.optString("gap", "");
+                            if (timeString.isEmpty() || timeString.equals("null")) {
+                                timeString = item.optString("gap", "");
+                            }
 
                             sb.append(position).append(". ").append(riderName);
                             if (points > 0) sb.append("  [").append(points).append(" pts]");
-                            if (!timeString.isEmpty() && !timeString.equals("null")) sb.append("\n    ⏱ ").append(timeString);
+
+                            // Affichage du chrono
+                            if (!timeString.isEmpty() && !timeString.equals("null")) {
+                                sb.append("\n    ⏱ ").append(timeString);
+                            }
                             sb.append("\n\n");
                         }
+
                         tvSessionDetails.setText(sb.toString());
 
                     } catch (Exception e) {
                         tvSessionDetails.setText("Erreur de lecture du classement.\n" + e.getMessage());
                     }
                 },
-                error -> tvSessionDetails.setText("Impossible de récupérer le classement (Réseau).")) {
+                error -> {
+                    // Affichage du code HTTP précis pour le débogage (ex: 403, 404)
+                    int statusCode = (error.networkResponse != null) ? error.networkResponse.statusCode : -1;
+                    tvSessionDetails.setText("Impossible de récupérer le classement.\nCode HTTP : " + statusCode);
+                }) {
             @Override public Map<String, String> getHeaders() { return getApiHeaders(); }
         };
 
         request.setRetryPolicy(new DefaultRetryPolicy(10000, 0, 1f));
         queue.add(request);
     }
-
     private Map<String, String> getApiHeaders() {
         Map<String, String> headers = new HashMap<>();
         headers.put("Accept", "application/json");
